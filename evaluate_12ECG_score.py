@@ -42,7 +42,7 @@
 import numpy as np, os, os.path, sys
 
 
-def evaluate_score(label_array, output_array,num_classes,thresold=0.2):
+def evaluate_score(label_array, output_array,num_classes,thresold=0.5):
     num_recordings = len(label_array)
     # labels=np.zeros((num_recordings,num_classes))
     output=np.zeros((num_recordings,num_classes))
@@ -62,10 +62,10 @@ def evaluate_score(label_array, output_array,num_classes,thresold=0.2):
     # Compute F_beta measure and the generalization of the Jaccard index
     accuracy, f_measure, Fbeta_measure, Gbeta_measure = compute_beta_score(label_array, output, beta, num_classes)
 
-    # compute AUROC and AUPRC
-    auroc, auprc = compute_auc(label_array, output_array, num_classes)
+    # # compute AUROC and AUPRC
+    # auroc, auprc = compute_auc(label_array, output_array, num_classes)
 
-    return accuracy, f_measure, Fbeta_measure, Gbeta_measure, auroc, auprc
+    return accuracy, f_measure, Fbeta_measure, Gbeta_measure
 
 
 def evaluate_12ECG_score(label_directory, output_directory):

@@ -85,25 +85,25 @@ tf.reset_default_graph()
 SEG_LENGTH = 18000
 cvscores=[]
 
-input_directory = '/home/better/桌面/tmf/Training_WFDB'
+input_directory = '/home/better/桌面/tmf/Training_WFDB/'
 # input_directory = '/home/zyhk/桌面/Training_WFDB'
 
-def datafeatrecord(input_directory,downsample,buf_size=100,leadnum=12,featurenum=25):
-    input_files = []
-    for f in os.listdir(input_directory):
-        if os.path.isfile(os.path.join(input_directory, f)) and not f.lower().startswith('.') and f.lower().endswith('mat'):
-            input_files.append(f)
+def datafeatrecord(input_directory,records,downsample,buf_size=100,leadnum=12,featurenum=25):
+    # input_files = []
+    # for f in os.listdir(input_directory):
+    #     if os.path.isfile(os.path.join(input_directory, f)) and not f.lower().startswith('.') and f.lower().endswith('mat'):
+    #         input_files.append(f)
 
 
-    classes=get_classes(input_directory,input_files)
-    num_files = len(input_files)
+    classes=get_classes(input_directory,records)
+    num_files = len(records)
     datalabel=[]
     target_len = int(72000 / downsample)
     SEG_buf = np.zeros([1, target_len, leadnum+1], dtype=np.float32)
     SEGs = np.zeros([1, target_len, leadnum+1], dtype=np.float32)
     # feat_buf=np.zeros([1,1,target_len], dtype=np.float32)
     featurezero=np.zeros([target_len,1])
-    for i, f in enumerate(input_files):
+    for i, f in enumerate(records):
         print('    {}/{}...'.format(i + 1, num_files))
         tmp_input_file = os.path.join(input_directory, f)
         data, header_data = load_challenge_data(tmp_input_file)
@@ -268,7 +268,7 @@ del recordnames,labeltotal
 train_records, train_labels = utils.oversample_balance(train_val_records, train_val_labels, config.RANDOM_STATE)
 
 
-records,label,class_num=datafeatrecord(input_directory,4)
+records,label,class_num=datafeatrecord(input_directory,train_records,4)
 # records,label,features,class_num=datarecord(input_directory,4)
 records[np.isnan(records)]=0.0
 records[np.isinf(records)]=0.0
@@ -277,7 +277,7 @@ num=0
 leadnum=12
 ###############################################################################################
 
-train_val_data = train_val_records[:,:,0:12]
+train_val_data = records[:,:,0:12]
 for train, val in kfold.split(train_val_data,train_val_labels):
     model_name = 'net_train_' + str(num) + '.hdf5'
     train_y=to_categorical(train_val_labels[train], num_classes=class_num)

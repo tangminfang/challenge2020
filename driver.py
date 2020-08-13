@@ -55,32 +55,62 @@ def get_classes(input_directory,files):
 def getdata_class(header):
 
     classes=set()
+    label=np.zeros([1,9],dtype='int')
     for lines in header:
         if lines.startswith('#Dx'):
             tmp = lines.split(': ')[1].split(',')
             for c in tmp:
                 classes.add(c.strip())
-            classname=list(classes)[0]
-            if(classname=="Normal"):
-                label=4
-            elif(classname=="AF"):
-                label=1
-            elif (classname == "I-AVB"):
-                label=2
-            elif (classname == "LBBB"):
-                label=3
-            elif (classname == "RBBB"):
-                label=7
-            elif (classname == "PAC"):
-                label=5
-            elif (classname == "PVC"):
-                label=6
-            elif (classname == "STD"):
-                label=8
-            elif (classname == "STE"):
-                label=9
+            classname=list(classes)
+            classname0=classname[0]
+            classnamemul=0
+            if len(classname)>1:
+                classnamemul=classname
+            i=0
+            while i<len(classname):
+                if(classname[i]=="Normal"):
+                    labelclass = 4
+                elif(classname[i]=="AF"):
+                    labelclass = 1
+                elif (classname[i] == "I-AVB"):
+                    labelclass = 2
+                elif (classname[i] == "LBBB"):
+                    labelclass = 3
+                elif (classname[i] == "RBBB"):
+                    labelclass = 7
+                elif (classname[i] == "PAC"):
+                    labelclass = 5
+                elif (classname[i] == "PVC"):
+                    labelclass = 6
+                elif (classname[i] == "STD"):
+                    labelclass = 8
+                elif (classname[i] == "STE"):
+                    labelclass = 9
+                i=i+1
+                labelclass=labelclass-1
+                label[0,labelclass]=1
 
-    return label
+            if (classname0 == "Normal"):
+                label0 = 4
+            elif (classname0 == "AF"):
+                label0= 1
+            elif (classname0 == "I-AVB"):
+                label0 = 2
+            elif (classname0 == "LBBB"):
+                label0 = 3
+            elif (classname0 == "RBBB"):
+                label0 = 7
+            elif (classname0 == "PAC"):
+                label0 = 5
+            elif (classname0 == "PVC"):
+                label0 = 6
+            elif (classname0 == "STD"):
+                label0 = 8
+            elif (classname0 == "STE"):
+                label0 = 9
+            label0=label0-1
+
+    return label,label0,classnamemul
 
 # if __name__ == '__main__':
 def dataread():
