@@ -38,6 +38,41 @@ class Net2(object):
 
         return net
 
+    def __a_inception_block(inp, stride=1, activation='relu'):
+        # k1, k2, k3, k4 = ince_filter
+        # l1, l2, l3, l4 = ince_length
+        inception = []
+
+        x1 = Conv1D(12, 1, strides=stride, padding='same', kernel_regularizer=regularizers.l2(0.001))(inp)
+        x1 = BatchNormalization()(x1)
+        x1 = Activation(activation)(x1)
+        inception.append(x1)
+
+        x2 = Conv1D(6, 1, strides=stride, padding='same', kernel_regularizer=regularizers.l2(0.001))(inp)
+        x2 = BatchNormalization()(x2)
+        x2 = Activation(activation)(x2)
+        x2 = Conv1D(12, 3, strides=stride, padding='same', kernel_regularizer=regularizers.l2(0.001))(x2)
+        x2 = BatchNormalization()(x2)
+        x2 = Activation(activation)(x2)
+        inception.append(x2)
+
+        x3 = Conv1D(6, 1, strides=stride, padding='same', kernel_regularizer=regularizers.l2(0.001))(inp)
+        x3 = BatchNormalization()(x3)
+        x3 = Activation(activation)(x3)
+        x3 = Conv1D(12, 1, strides=stride, padding='same', kernel_regularizer=regularizers.l2(0.001))(x3)
+        x3 = BatchNormalization()(x3)
+        x3 = Activation(activation)(x3)
+        inception.append(x3)
+
+        x4 = MaxPooling1D(pool_size=3, strides=stride, padding='same')(inp)
+        x4 = Conv1D(12, 1, strides=1, padding='same')(x4)
+        x4 = BatchNormalization()(x4)
+        x4 = Activation(activation)(x4)
+        inception.append(x4)
+        v1 = Concatenate(axis=-1)(inception)
+
+        return v1
+
     def __inception_block(inp, stride=1, activation='relu'):
         # k1, k2, k3, k4 = ince_filter
         # l1, l2, l3, l4 = ince_length
@@ -82,11 +117,12 @@ class Net2(object):
         :param initial:  str, 初始化方式， 默认he_normal
         :return: keras tensor, 单个信号切片经过卷积层后的输出
         """
-        net = Net2.__cnnblock(inp, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
-        net = Net2.__cnnblock(net, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
-        net = Net2.__cnnblock(net, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
-        net = Net2.__cnnblock(net, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
-        net = Net2.__cnnblock(net,C=0.001, stridenum=1, initial='he_normal', poolnum=48)
+        net = Net2.__a_inception_block(inp)
+        # net = Net2.__cnnblock(inp, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
+        net = Net2.__cnnblock(net,ker=12, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
+        net = Net2.__cnnblock(net, ker=12,C=0.001, stridenum=1, initial='he_normal', poolnum=24)
+        net = Net2.__cnnblock(net, ker=12, C=0.001, stridenum=1, initial='he_normal', poolnum=24)
+        net = Net2.__cnnblock(net, ker=12,C=0.001, stridenum=1, initial='he_normal', poolnum=48)
         # net = Net2.__inception_block(inp)
         # net = Net2.__inception_block(net)
         # net = Net2.__inception_block(net)
@@ -114,6 +150,13 @@ class Net2(object):
 
         # attention
         attention_pre = Dense(24, name='attention_vec')(features)  # [b_size,maxlen,64]
+        attention_probs = Softmax()(attention_pre)  # [b_size,maxlen,64]
+        attention_mul = Lambda(lambda x: x[0] * x[1])([attention_probs, features])
+
+        features = Bidirectional(CuDNNGRU(12, return_sequences=True), merge_mode='concat')(attention_mul)
+
+        # attention
+        attention_pre = Dense(24, name='attention_vec1')(features)  # [b_size,maxlen,64]
         attention_probs = Softmax()(attention_pre)  # [b_size,maxlen,64]
         attention_mul = Lambda(lambda x: x[0] * x[1])([attention_probs, features])
         # features = attention_3d_block1(features)

@@ -58,6 +58,36 @@ def evaluate_score(label_array, output_array,num_classes,thresold=0.5):
         # labels[i][jlb_locate] = 1
         # output[i][jout_locate] = 1
 
+    classacc_temp = []
+    classrecall_temp=[]
+    classprecision_temp=[]
+    classf1_temp=[]
+    for k in range(num_classes):
+        class_pre = output[:, k]
+        class_t = label_array[:, k]
+        m = 0
+        m1=0
+        m2=0
+        m3=0
+        for kk in range(num_recordings):
+            if class_pre[kk] == class_t[kk] :
+                m = m + 1
+        for kk1 in range(num_recordings):
+            if class_pre[kk1] == class_t[kk1] and class_pre[kk1]==1:
+                m1 = m1 + 1
+            if class_t[kk1] == 1:
+                m2 = m2 + 1
+            if class_pre[kk1] == 1:
+                m3=m3+1
+        class_acc = np.float(m / num_recordings)
+        class_recall=np.float(m1/m2)
+        class_precision = np.float(m1 / m3)
+        f1=(2*class_precision*class_recall)/(class_precision+class_recall)
+        classacc_temp.append(class_acc)
+        classrecall_temp.append(class_recall)
+        classprecision_temp.append(class_precision)
+        classf1_temp.append(f1)
+
     beta = 2
     # Compute F_beta measure and the generalization of the Jaccard index
     accuracy, f_measure, Fbeta_measure, Gbeta_measure = compute_beta_score(label_array, output, beta, num_classes)
@@ -65,7 +95,7 @@ def evaluate_score(label_array, output_array,num_classes,thresold=0.5):
     # # compute AUROC and AUPRC
     # auroc, auprc = compute_auc(label_array, output_array, num_classes)
 
-    return accuracy, f_measure, Fbeta_measure, Gbeta_measure
+    return accuracy, f_measure, Fbeta_measure, Gbeta_measure,classacc_temp,classrecall_temp,classprecision_temp,classf1_temp
 
 
 def evaluate_12ECG_score(label_directory, output_directory):

@@ -182,11 +182,11 @@ train_records, val_records, train_labels, val_labels = train_test_split(
 
 del recordnames,labeltotal
 
-train_ecg, train_targets = utils.oversample_balance(train_records, train_labels, config.RANDOM_STATE)
-val_ecg, val_targets = utils.oversample_balance(val_records, val_labels, config.RANDOM_STATE)
+# train_ecg, train_targets = utils.oversample_balance(train_records, train_labels, config.RANDOM_STATE)
+# val_ecg, val_targets = utils.oversample_balance(val_records, val_labels, config.RANDOM_STATE)
 
-train_data,train_targets=datafeatrecord(input_directory,train_ecg,4)
-val_data, val_targets= datafeatrecord(input_directory,val_ecg,4)
+train_data,train_targets=datafeatrecord(input_directory,train_records,4)
+val_data, val_targets= datafeatrecord(input_directory,val_records,4)
 # records,label,features,class_num=datarecord(input_directory,4)
 train_data[np.isnan(train_data)]=0.0
 train_data[np.isinf(train_data)]=0.0

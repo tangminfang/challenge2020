@@ -250,3 +250,58 @@ def oversample_balance(records, labels, rand_seed):
     records = np.concatenate((records, np.array(over_sample_records)))
     labels = np.concatenate((labels, np.array(over_sample_labels)))
     return records, labels
+
+
+def drawcpc(a, b):
+    n = tpart * 2 * 120 * 2  # 每段数据6min,重采样后120个采样点      修改
+    k = int(np.ceil(np.size(a) / 1440))  # 20*6  #段数
+    t = []
+    cp = []
+    tf = []
+    tff = []
+    cpp = []
+
+    for m in range(k):
+        ecgsignal = []
+        ecgsignal = a[m * n:(m + 1) * n]  # 多余不会溢出
+        rspsignal = []
+        rspsignal = b[m * n:(m + 1) * n]
+
+        fa, ta, axx = sg.stft(ecgsignal, 2, window='hann', nperseg=720 * 2, nfft=720 * 2)
+        fb, tb, bxx = sg.stft(rspsignal, 2, window='hann', nperseg=720 * 2, nfft=720 * 2)
+        #
+        #        #CPC
+        cross = []
+        cross = axx * np.conjugate(bxx)
+        axxx = axx * np.conjugate(axx)
+        bxxx = bxx * np.conjugate(bxx)
+        cohere = abs(cross.real) ** 2 / (axxx.real * bxxx.real)
+        cpc = cohere * abs(cross.real * 1E5) ** 1  # 平方项变1.3
+        cpc = cpc[:, 0:2]  # 删去重复项
+        ta = ta[0:2]
+
+        cpc_trans = np.transpose(cpc)
+        f = fa
+        tf.extend(ta)
+        cp.extend(cpc_trans)
+
+    cpc_array = np.array(cp)
+    cpc_r = np.transpose(cpc_array)
+    cpc_r = cpc_r[:, 0:k * 2]
+
+    # 修改特别大的值
+    #    maxp=[]
+    #    for i in range(cpc_r.shape[0]):
+    #        maxp.append(max(cpc_r[i,0:120]))
+    #    thers=max(maxp)/2.0
+    #    cpc_r[cpc_r>thers]*=0.7
+
+    # 绘时频图
+    t = np.arange(0, np.size(tf) * 180 * 2, 180 * 2)
+    f, t = np.meshgrid(t, f)
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot_surface(f, t, cpc_r, rstride=1, cstride=1, cmap='rainbow')
+    plt.ylabel('Frequency [Hz]')
+    plt.xlabel('Time [sec]')
+    plt.show()

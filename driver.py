@@ -52,8 +52,17 @@ def get_classes(input_directory,files):
 
     return sorted(classes)
 
+# num1=0
+# num2=0
+# num3=0
+# num4=0
+# num5=0
+# num6=0
+# num7=0
+# num8=0
+# num9=0
 def getdata_class(header):
-
+    # global num1,num2,num3,num4,num5,num6,num7,num8,num9
     classes=set()
     label=np.zeros([1,9],dtype='int')
     for lines in header:
@@ -63,29 +72,39 @@ def getdata_class(header):
                 classes.add(c.strip())
             classname=list(classes)
             classname0=classname[0]
-            classnamemul=0
-            if len(classname)>1:
-                classnamemul=classname
+            # classnamemul=0
+            # if len(classname)>1:
+            #     classnamemul=classname
             i=0
             while i<len(classname):
                 if(classname[i]=="Normal"):
                     labelclass = 4
+                    # num1=num1+1
                 elif(classname[i]=="AF"):
                     labelclass = 1
+                    # num2=num2+1
                 elif (classname[i] == "I-AVB"):
                     labelclass = 2
+                    # num3=num3+1
                 elif (classname[i] == "LBBB"):
                     labelclass = 3
+                    # num4=num4+1
                 elif (classname[i] == "RBBB"):
                     labelclass = 7
+                    # num5=num5+1
                 elif (classname[i] == "PAC"):
                     labelclass = 5
+                    # num6=num6+1
                 elif (classname[i] == "PVC"):
                     labelclass = 6
+                    # num7=num7+1
                 elif (classname[i] == "STD"):
                     labelclass = 8
+                    # num8=num8+1
                 elif (classname[i] == "STE"):
                     labelclass = 9
+                    # num9=num9+1
+
                 i=i+1
                 labelclass=labelclass-1
                 label[0,labelclass]=1
@@ -109,8 +128,8 @@ def getdata_class(header):
             elif (classname0 == "STE"):
                 label0 = 9
             label0=label0-1
-
-    return label,label0,classnamemul
+    # print(num1,num2,num3,num4,num5,num6,num7,num8,num9)
+    return label,label0
 
 # if __name__ == '__main__':
 def dataread():

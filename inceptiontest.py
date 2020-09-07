@@ -86,7 +86,7 @@ SEG_LENGTH = 18000
 cvscores=[]
 
 input_directory = '/home/better/桌面/tmf/Training_WFDB/'
-# input_directory = '/home/zyhk/桌面/Training_WFDB'
+# input_directory = '/home/better/桌面/tmf/trainingdata_small/'
 
 def datafeatrecord(input_directory,records,downsample,buf_size=100,leadnum=12,featurenum=25):
     # input_files = []
@@ -151,11 +151,11 @@ def datarecord(input_directory):
         print('    {}/{}...'.format(i + 1, num_files))
         tmp_input_file = os.path.join(input_directory, f)
         data, header_data = load_challenge_data(tmp_input_file)
-        labelonhot, label0,classnamemul = getdata_class(header_data)
+        labelonhot, label0= getdata_class(header_data)
         datalabel.append(label0)
-        classnamemultemp.append(classnamemul)
+        # classnamemultemp.append(classnamemul)
     datalabel = np.array(datalabel)
-    text_save('classname.txt',classnamemultemp)
+    # text_save('classname.txt',classnamemultemp)
 
     return np.array(input_files), datalabel
 
@@ -214,6 +214,21 @@ def joint_optimization_loss(y_true, y_pred):
     """
     2018 - cvpr - Joint optimization framework for learning with noisy labels.
     """
+    print('y_shape:', y_true.shape)
+    zero_array = np.zeros((64,9))  # 这儿是为了feed x让它能转为numpy
+    sess = tf.Session()
+    x = y_true.eval(session=sess)
+# with tf.Session():
+#         y_pred = y_pred.eval()
+#         y_true = y_true.eval()
+
+    #    y_true=np.array(y_true)
+    #    y_pred=np.array(y_pred)
+    print(type(y_pred))
+
+    print('y_shape:', y_true.shape)
+    shape = y_true.shape
+
     y_pred_avg = K.mean(y_pred, axis=0)
     p = np.ones(10, dtype=np.float32) / 10.
     l_p = - K.sum(K.log(y_pred_avg) * p)
@@ -221,23 +236,141 @@ def joint_optimization_loss(y_true, y_pred):
     return K.categorical_crossentropy(y_true, y_pred) + 1.2 * l_p + 0.8 * l_e
 
 
+def multi_category_focal_loss1(gamma=2.0,threshold=0.5,smooth=1.,ll=0.25,batchsize=64,classnum=9):
+    """
+    focal loss for multi category of multi label problem
+    适用于多分类或多标签问题的focal loss
+    alpha用于指定不同类别/标签的权重，数组大小需要与类别个数一致
+    当你的数据集不同类别/标签之间存在偏斜，可以尝试适用本函数作为loss
+    Usage:
+     model.compile(loss=[multi_category_focal_loss1(alpha=[1,2,3,2], gamma=2)], metrics=["accuracy"], optimizer=adam)
+    """
+    epsilon = 1.e-7
+    # alpha = tf.constant(alpha, dtype=tf.float32)
+    # alpha = tf.constant([[1],[0.75],[1.3],[3.5],[0.5],[1.5],[1.3],[1],[4.2]], dtype=tf.float32)
+    alpha = tf.constant([[1], [1], [1], [1], [1], [1], [1], [1], [1]], dtype=tf.float32)
+    # alpha1 = tf.constant([[0.5], [0.5], [0.5], [0.5], [0.75], [0.5], [0.5], [0.5], [0.75]], dtype=tf.float32)
+    alpha1 = tf.constant(0.75, dtype=tf.float32)
+    #alpha = tf.constant_initializer(alpha)
+    gamma = float(gamma)
+    threshold_value = threshold
+    def multi_category_focal_loss1_fixed(y_true, y_pred):
+        # ytrue_array=np.zeros((batchsize,class_num),dtype='int')
+        print('y_shape:', y_true.shape)
+        with tf.Session():
+            y_pred = y_pred.eval()
+            y_true = y_true.eval()
+
+        #    y_true=np.array(y_true)
+        #    y_pred=np.array(y_pred)
+        print(type(y_pred))
+
+        print('y_shape:', y_true.shape)
+        shape = y_true.shape
+
+
+        ytrue_array = np.zeros((batchsize,class_num),dtype='float32')
+        y_true = tf.cast(y_true, tf.float32)
+        ytrue_array = K.eval(y_true)
+        num_temp=[]
+        for i in range(classnum):
+            ytrue_one=ytrue_array[:,i]
+            num=0
+            for j in ytrue_one:
+                if j==1:
+                    num=num+1
+            num_temp.append(num)
+        num_temp=num_temp/batchsize
+
+
+        # Adaptation of the "round()" used before to get the predictions. Clipping to make sure that the predicted raw values are between 0 and 1.
+        # y_pred = K.cast(K.greater(K.clip(y_pred, 0, 1), threshold_value), K.floatx())
+        y_pred = tf.clip_by_value(y_pred, epsilon, 1. - epsilon)
+
+        alpha_t = y_true*alpha1 + (tf.ones_like(y_true)-y_true)*(1-alpha1)
+
+        y_t = tf.multiply(y_true, y_pred) + tf.multiply(1 - y_true, 1 - y_pred)
+        ce = -tf.log(y_t)
+        weight = tf.pow(tf.subtract(1., y_t), gamma)
+        fl = tf.multiply(tf.multiply(weight, ce), alpha_t)
+        loss = tf.reduce_mean(fl)
+
+        # y_t = tf.multiply(y_true, y_pred) + tf.multiply(1-y_true, 1-y_pred)
+        # ce = -tf.log(y_t)
+        #
+        # f2 = tf.multiply(ce, alpha_t)
+        # weight = tf.pow(tf.subtract(1., y_t), gamma)
+        # fl = tf.matmul((tf.multiply(weight, ce)+f2), alpha)
+        # # fl = tf.matmul(tf.multiply(weight, ce), alpha)
+        # loss = tf.reduce_mean(fl)
+
+        # y_true_f = K.flatten(y_true)  # 将 y_true 拉伸为一维.
+        # y_pred_f = K.flatten(y_pred)
+        # intersection = K.sum(y_true_f * y_pred_f)
+        # loss2=(2. * intersection + smooth) / (K.sum(y_true_f * y_true_f) + K.sum(y_pred_f * y_pred_f) + smooth)
+
+        y_true_pos = K.flatten(y_true)
+        y_pred_pos = K.flatten(y_pred)
+        true_pos = K.sum(y_true_pos * y_pred_pos)
+        false_neg = K.sum(y_true_pos * (1 - y_pred_pos))
+        false_pos = K.sum((1 - y_true_pos) * y_pred_pos)
+        alpha2 = 0.7
+        loss2 = (true_pos + smooth) / (true_pos + alpha2 * false_neg + (1 - alpha2) * false_pos + smooth)
+        return loss#0.75*loss+ll*(1.-loss2)
+    return multi_category_focal_loss1_fixed
+
+
+
+def dice_coef_loss(smooth=1.):
+    def dice_coef(y_true, y_pred):
+        y_true_f = K.flatten(y_true)  # 将 y_true 拉伸为一维.
+        y_pred_f = K.flatten(y_pred)
+        intersection = K.sum(y_true_f * y_pred_f)
+        return (2. * intersection + smooth) / (K.sum(y_true_f * y_true_f) + K.sum(y_pred_f * y_pred_f) + smooth)
+    return 1. - dice_coef
+
+
+def single(y_true, y_pred,interesting_class_id):
+    class_id_true = K.argmax(y_true, axis=-1)
+    class_id_preds = K.argmax(y_pred, axis=-1)
+    # Replace class_id_preds with class_id_true for recall here
+    interesting_class_id = K.cast(interesting_class_id, 'int64')
+    accuracy_mask = K.cast(K.equal(class_id_preds, interesting_class_id), 'float32')
+    class_acc_tensor = K.cast(K.equal(class_id_true, class_id_preds), 'float32') * accuracy_mask
+    class_acc = K.sum(class_acc_tensor) / K.maximum(K.sum(accuracy_mask), 1)
+    return class_acc
+
+from sklearn.preprocessing import StandardScaler,scale
+
 MODEL_PATH='/home/better/桌面/modelfile/'
 
 recordnames,labeltotal=datarecord(input_directory)
+
 train_val_records, test_records, train_val_labels, test_labels = train_test_split(
     recordnames, labeltotal, test_size=0.1, random_state=config.RANDOM_STATE)
 
+# train_val_ecg, train_val_targets = utils.oversample_balance(train_val_records, train_val_labels, config.RANDOM_STATE)
 train_records, val_records, train_labels, val_labels = train_test_split(
     train_val_records, train_val_labels, test_size=0.1, random_state=config.RANDOM_STATE)
 
 del recordnames,labeltotal
 
-train_ecg, train_targets = utils.oversample_balance(train_records, train_labels, config.RANDOM_STATE)
-val_ecg, val_targets = utils.oversample_balance(val_records, val_labels, config.RANDOM_STATE)
+# train_ecg, train_targets = utils.oversample_balance(train_records, train_labels, config.RANDOM_STATE)
+# val_ecg, val_targets = utils.oversample_balance(val_records, val_labels, config.RANDOM_STATE)
 
-train_data,train_targets=datafeatrecord(input_directory,train_ecg,4)
-val_data, val_targets= datafeatrecord(input_directory,val_ecg,4)
+train_data,train_targets=datafeatrecord(input_directory,train_records,4)
+val_data, val_targets= datafeatrecord(input_directory,val_records,4)
 test_data, test_targets= datafeatrecord(input_directory,test_records,4)
+
+###################################################################
+# #
+# print('Scaling data ...-----------------\n')
+# for j in range(train_data.shape[0]):
+#     train_data[j, :, :] = scale(train_data[j, :, :], axis=0)
+# for j in range(val_data.shape[0]):
+#     val_data[j, :, :] = scale(val_data[j, :, :], axis=0)
+# for j in range(test_data.shape[0]):
+#     test_data[j, :, :] = scale(test_data[j, :, :], axis=0)
 # records,label,features,class_num=datarecord(input_directory,4)
 train_data[np.isnan(train_data)]=0.0
 train_data[np.isinf(train_data)]=0.0
@@ -269,9 +402,8 @@ model = Model(inputs=inputs, outputs=outputs)
 opt = optimizers.Adam(lr=0.01)
 model.compile(optimizer=opt, loss='binary_crossentropy',
               metrics=['accuracy'])
-# model.compile(optimizer=opt, loss=generalized_cross_entropy,
-#                             metrics=['categorical_accuracy'])
-
+# model.compile(optimizer=opt, loss=joint_optimization_loss,
+#                             metrics=['accuracy'])
 checkpoint = ModelCheckpoint(filepath=MODEL_PATH + model_name,
                              monitor='val_acc', mode='max',
                              save_best_only='True')
@@ -283,9 +415,13 @@ callback_lists = [checkpoint]
 val_y=val_targets
 model.fit(x=train_data1, y=train_y, batch_size=batch_size, epochs=epochs, verbose=1,
           validation_data=(val_data1, val_y), callbacks=callback_lists)
+
+
 loss, accuracy = model.evaluate(train_data1, train_y, verbose=False)
 print("Training Accuracy: {:.4f}".format(accuracy))
 print("loss: {:.4f}".format(loss))
+
+###############################################
 
 pred_y=model.predict(test_data1)
 pred_v = np.argmax(pred_y, axis=1)
@@ -295,11 +431,16 @@ for i in range(len(pred_v)):
     if(pred_v[i]==true_v[i]):
         m=m+1
 acc_test=m/len(pred_v)
-acc_oval, f_oval, Fbeta_oval, Gbeta_oval = evaluate_score(test_targets, pred_y, class_num)
+acc_oval, f_oval, Fbeta_oval, Gbeta_oval,classpre_all,classrecall,classprecision,classf1 = evaluate_score(test_targets, pred_y, class_num)
 print('acc:', acc_oval,acc_test,end=' ')
 print('f:', f_oval,end=' ')
 print('Fbeta:', Fbeta_oval,end=' ')
 print('Gbeta:', Gbeta_oval,end=' ')
+print()
+print("every_class:",classpre_all)
+print("every_class:",classrecall)
+print("every_class:",classprecision)
+print("every_class:",classf1)
 # print('auroc:', auroc, end=' ')
 # print('auprc:', auprc, end=' ')
 
